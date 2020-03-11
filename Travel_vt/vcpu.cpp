@@ -128,6 +128,5 @@ status_code vcpu_t::vmx_enter() noexcept
 		return error_code;
 	}
  
-	__debugbreak();
 	return status_code::success;
 }
