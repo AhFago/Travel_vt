@@ -2,6 +2,21 @@
 #include "vmx.h"
 #include "msr.h"
 
+uint64_t vcpu_t::get_system_cr3()
+{
+	struct _kprocess_t
+	{
+		DISPATCHER_HEADER Header;
+		LIST_ENTRY ProfileListHead;
+		ULONG_PTR DirectoryTableBase;
+		LIST_ENTRY ThreadListHead;
+	};
+
+	_kprocess_t * system_process = reinterpret_cast< _kprocess_t * >(PsInitialSystemProcess);
+
+	return system_process->DirectoryTableBase;
+}
+
 status_code vcpu_t::load_vmxon() noexcept
 {
 
@@ -55,49 +70,71 @@ status_code vcpu_t::load_vmcs() noexcept
 status_code vcpu_t::setup_host() noexcept
 {
 
-	__debugbreak();
+ 
+	ia32::segment_t			 segment_cs;
+	ia32::segment_t			 segment_ds;
+	ia32::segment_t			 segment_es;
+	ia32::segment_t			 segment_fs;
+	ia32::segment_t			 segment_gs;
+	ia32::segment_t			 segment_ss;
+	ia32::segment_t			 segment_tr;
+
+	ia32::segment_selector_t selector_cs;
+	ia32::segment_selector_t selector_ds;
+	ia32::segment_selector_t selector_es;
+	ia32::segment_selector_t selector_fs;
+	ia32::segment_selector_t selector_gs;
+	ia32::segment_selector_t selector_ss;
+	ia32::segment_selector_t selector_tr;
+
+	selector_cs.flags = ia32_asm_read_cs();
+	selector_ds.flags = ia32_asm_read_ds();
+	selector_es.flags = ia32_asm_read_es();
+	selector_fs.flags = ia32_asm_read_fs();
+	selector_gs.flags = ia32_asm_read_gs();
+	selector_ss.flags = ia32_asm_read_ss();
+	selector_tr.flags = ia32_asm_read_tr();
 
 	const auto gdtr = ia32::asm_read_gdtr();
 	const auto idtr = ia32::asm_read_idtr();
 
+	ia32::read_segment_info(selector_cs, &segment_cs);
+	ia32::read_segment_info(selector_ds, &segment_ds);
+	ia32::read_segment_info(selector_es, &segment_es);
+	ia32::read_segment_info(selector_fs, &segment_fs);
+	ia32::read_segment_info(selector_gs, &segment_gs);
+	ia32::read_segment_info(selector_ss, &segment_ss);
+	ia32::read_segment_info(selector_tr, &segment_tr);
+
+	segment_fs.base_address = (void *)ia32::asm_read_msr(ia32::msr::fs_base_t::msr_id);
+	segment_gs.base_address = (void *)ia32::asm_read_msr(ia32::msr::gs_base_t::msr_id);
+
 	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_gdtr_base, gdtr.base_address);
 	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_idtr_base, idtr.base_address);
 
-// 	host_cs(segment_t{ gdtr, read<cs_t>() });
-// 	host_ds(segment_t{ gdtr, read<ds_t>() });
-// 	host_es(segment_t{ gdtr, read<es_t>() });
-// 	host_fs(segment_t{ gdtr, read<fs_t>() });
-// 	host_gs(segment_t{ gdtr, read<gs_t>() });
-// 	host_ss(segment_t{ gdtr, read<ss_t>() });
-// 	host_tr(segment_t{ gdtr, read<tr_t>() });
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cs_selector, segment_cs.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_ds_selector, segment_ds.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_es_selector, segment_es.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_fs_selector, segment_fs.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_gs_selector, segment_gs.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_ss_selector, segment_ss.selector.index * 8);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_tr_selector, segment_tr.selector.index * 8);
 
-
+	 
+ 
+	//PsInitialSystemProcess
 
 	
-	ia32::segment_t segment;
-	ia32::segment_selector_t selector;
-
-	selector.flags = ia32_asm_read_cs();
-	ia32::read_segment_info(selector, &segment);
-
-	selector.flags = ia32_asm_read_ds();
-	ia32::read_segment_info(selector, &segment);
-
-	selector.flags = ia32_asm_read_es();
-	ia32::read_segment_info(selector, &segment);
-
-	selector.flags = ia32_asm_read_ss();
-	ia32::read_segment_info(selector, &segment);
-
-	selector.flags = ia32_asm_read_tr();
-	ia32::read_segment_info(selector, &segment);
+	
 
 
-	selector.flags = ia32_asm_read_fs();//???
-	ia32::read_segment_info(selector, &segment);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cr0, ia32::asm_read_cr0());
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cr4, ia32::asm_read_cr4());
 
-	selector.flags = ia32_asm_read_gs();
-	ia32::read_segment_info(selector, &segment);
+	ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cr3, get_system_cr3());// PsInitialSystemProcess.DirectoryTableBase
+
+
+
 
 	return status_code::success;
 }
@@ -128,6 +165,6 @@ status_code vcpu_t::vmx_enter() noexcept
 		return error_code;
 	}
  
-	__debugbreak();
+
 	return status_code::success;
 }
