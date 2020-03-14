@@ -68,5 +68,8 @@
     <MASM Include="asm.asm">
       <Filter>Resource Files</Filter>
     </MASM>
+    <MASM Include="vcpu.asm">
+      <Filter>Resource Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

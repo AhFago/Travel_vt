@@ -1,0 +1,11 @@
+﻿  Building 'Travel_vt' with toolset 'WindowsKernelModeDriver10.0' and the 'Desktop' target platform.
+  hypervisor.cpp
+  msr.cpp
+  Travel_vt.cpp
+  vcpu.cpp
+  Travel_vt.vcxproj -> D:\AhFago\Project\R0\Travel_vt\x64\Release\Travel_vt.sys
+  Done Adding Additional Store
+  Successfully signed: D:\AhFago\Project\R0\Travel_vt\x64\Release\Travel_vt.sys
+  
+  Inf2Cat task was skipped as there were no inf files to process
+  

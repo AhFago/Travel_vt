@@ -46,12 +46,9 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT pDriverObj, IN PUNICODE_STRING pRegistryS
 		IoDeleteDevice(pDevObj);
 		return status;
 	}
+	
+	Travel_vt::vcpu_t vcpu;
 
-	vcpu_t vcpu;
-
-
-
-//	vcpu.setup_host();
 	vcpu.vmx_enter();
 
 	DebugPrintA("Travel_vt DriverEntry Success \r\n");

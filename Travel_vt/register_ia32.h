@@ -473,6 +473,315 @@ namespace ia32
 		};
 	};
 
+	struct rflags_t
+	{
+		//
+		// Reserved bits.
+		//
+		static constexpr uint64_t reserved_bits = 0xffc38028;
+
+		//
+		// Bits that are fixed to 1 ("read_as_1" field).
+		//
+		static constexpr uint64_t fixed_bits = 0x00000002;
+
+		union
+		{
+			uint64_t flags;
+
+			struct
+			{
+				uint64_t carry_flag : 1;
+				uint64_t read_as_1 : 1;
+				uint64_t parity_flag : 1;
+				uint64_t reserved_1 : 1;
+				uint64_t auxiliary_carry_flag : 1;
+				uint64_t reserved_2 : 1;
+				uint64_t zero_flag : 1;
+				uint64_t sign_flag : 1;
+				uint64_t trap_flag : 1;
+				uint64_t interrupt_enable_flag : 1;
+				uint64_t direction_flag : 1;
+				uint64_t overflow_flag : 1;
+				uint64_t io_privilege_level : 2;
+				uint64_t nested_task_flag : 1;
+				uint64_t reserved_3 : 1;
+				uint64_t resume_flag : 1;
+				uint64_t virtual_8086_mode_flag : 1;
+				uint64_t alignment_check_flag : 1;
+				uint64_t virtual_interrupt_flag : 1;
+				uint64_t virtual_interrupt_pending_flag : 1;
+				uint64_t identification_flag : 1;
+			};
+		};
+	};
+
+	struct context_t
+	{
+		enum
+		{
+			reg_rax = 0,
+			reg_rcx = 1,
+			reg_rdx = 2,
+			reg_rbx = 3,
+			reg_rsp = 4,
+			reg_rbp = 5,
+			reg_rsi = 6,
+			reg_rdi = 7,
+			reg_r8 = 8,
+			reg_r9 = 9,
+			reg_r10 = 10,
+			reg_r11 = 11,
+			reg_r12 = 12,
+			reg_r13 = 13,
+			reg_r14 = 14,
+			reg_r15 = 15,
+
+			reg_min = 0,
+			reg_max = 15,
+		};
+
+		enum
+		{
+			seg_es = 0,
+			seg_cs = 1,
+			seg_ss = 2,
+			seg_ds = 3,
+			seg_fs = 4,
+			seg_gs = 5,
+			seg_ldtr = 6,
+			seg_tr = 7,
+
+			seg_min = 0,
+			seg_max = 7,
+		};
+
+		union
+		{
+			struct
+			{
+				union
+				{
+					uint64_t rax;
+					void* rax_as_pointer;
+
+					struct
+					{
+						uint32_t eax;
+						uint32_t rax_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rcx;
+					void* rcx_as_pointer;
+
+					struct
+					{
+						uint32_t ecx;
+						uint32_t rcx_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rdx;
+					void* rdx_as_pointer;
+
+					struct
+					{
+						uint32_t edx;
+						uint32_t rdx_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rbx;
+					void* rbx_as_pointer;
+
+					struct
+					{
+						uint32_t ebx;
+						uint32_t rbx_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rsp;
+					void* rsp_as_pointer;
+
+					struct
+					{
+						uint32_t esp;
+						uint32_t rsp_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rbp;
+					void* rbp_as_pointer;
+
+					struct
+					{
+						uint32_t ebp;
+						uint32_t rbp_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rsi;
+					void* rsi_as_pointer;
+
+					struct
+					{
+						uint32_t esi;
+						uint32_t rsi_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t rdi;
+					void* rdi_as_pointer;
+
+					struct
+					{
+						uint32_t edi;
+						uint32_t rdi_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r8;
+					void* r8_as_pointer;
+
+					struct
+					{
+						uint32_t r8d;
+						uint32_t r8_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r9;
+					void* r9_as_pointer;
+
+					struct
+					{
+						uint32_t r9d;
+						uint32_t r9_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r10;
+					void* r10_as_pointer;
+
+					struct
+					{
+						uint32_t r10d;
+						uint32_t r10_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r11;
+					void* r11_as_pointer;
+
+					struct
+					{
+						uint32_t r11d;
+						uint32_t r11_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r12;
+					void* r12_as_pointer;
+
+					struct
+					{
+						uint32_t r12d;
+						uint32_t r12_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r13;
+					void* r13_as_pointer;
+
+					struct
+					{
+						uint32_t r13d;
+						uint32_t r13_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r14;
+					void* r14_as_pointer;
+
+					struct
+					{
+						uint32_t r14d;
+						uint32_t r14_hi;
+					};
+				};
+
+				union
+				{
+					uint64_t r15;
+					void* r15_as_pointer;
+
+					struct
+					{
+						uint32_t r15d;
+						uint32_t r15_hi;
+					};
+				};
+			};
+
+			uint64_t gp_register[16];
+		};
+
+		union
+		{
+			uint64_t rip;
+			void* rip_as_pointer;
+
+			struct
+			{
+				uint32_t eip;
+				uint32_t rip_hi;
+			};
+		};
+
+		rflags_t rflags;
+
+		int capture() noexcept;
+
+		[[noreturn]]
+		void restore() noexcept;
+
+		void clear() noexcept
+		{
+			memset(this, 0, sizeof(*this));
+		}
+	};
+
+
 	#pragma pack(pop)
 
 	inline void asm_cpuid(uint32_t result[4], uint32_t eax) noexcept
@@ -657,7 +966,7 @@ namespace ia32
 
 	inline bool read_segment_info(segment_selector_t selector,segment_t * segment) noexcept
 	{
-		//const auto gdtr = ia32::asm_read_gdtr();
+		const auto gdtr = ia32::asm_read_gdtr();
 
 	 
 		segment->limit			= ia32_asm_read_sl(selector.flags);
@@ -669,8 +978,6 @@ namespace ia32
 		{
 			gdt_descriptor_t   gdt_table;
 
-			const auto gdtr = ia32::asm_read_gdtr();
-
 			gdt_table = *(gdt_descriptor_t*)(gdtr.base_address + selector.index * 8);
 
 			segment->base_address = (void *)gdt_table.get_base_address();
@@ -681,8 +988,6 @@ namespace ia32
 			uint64_t			ldt_base;
 			ldt_descriptor_t    ldt_table;
 			segment_selector_t  ldtr_selector;
-			
-			const auto gdtr = ia32::asm_read_gdtr();
 
 			ldtr_selector.flags = ia32_asm_read_ldtr();
 
@@ -698,14 +1003,7 @@ namespace ia32
 		return true;
 	}
 
-// 
-// 	void ia32_asm_read_gdtr(void* gdt) noexcept;
-// 	void ia32_asm_write_gdtr(const void* gdt) noexcept;
 
-// 	inline uint8_t asm_read_gdtr(void* gdt) noexcept;
-// 	{
-// 		//return ia32_asm_read_gdtr(gdt);
-// 	}
 }
 
 

@@ -55,7 +55,7 @@
 #if DBG
 #define DebugPrintA DbgPrint
 #else
-#define dprintf
+#define DebugPrintA
 #endif
 
 
