@@ -1014,11 +1014,9 @@ namespace ia32
 
 		const auto gdtr = ia32::asm_read_gdtr();
 
-	 
 		segment->limit			= ia32_asm_read_sl(selector.flags);
 		segment->access.flags	= (uint16_t)(ia32_asm_read_ar(selector.flags) >> 8);
 		segment->selector.flags = selector.flags;
-
 
 		if (selector.table == segment_selector_t::table_gdt)
 		{
@@ -1044,7 +1042,6 @@ namespace ia32
 			segment->base_address = (void*)ldt_table.get_base_address();
 
 		}
-
 
 		return true;
 	}
