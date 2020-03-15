@@ -294,8 +294,18 @@ namespace ia32
 				uint16_t type_expansion_direction : 1;
 				uint16_t type_code_segment : 1;
 			};
+
 		};
 	};
+
+	struct segment_access_vmx_t : segment_access_t
+	{
+		struct
+		{
+			uint16_t unusable; // : 1
+		};
+	};
+
 
 	struct cs_t   : segment_selector_t {};
 	struct ds_t   : segment_selector_t {};
@@ -393,10 +403,10 @@ namespace ia32
 
 	struct segment_t
 	{
-		segment_selector_t	selector;
-		segment_access_t	access;
-		void *				base_address;
-		uint32_t			limit;
+		segment_selector_t		selector;
+		segment_access_vmx_t	access;
+		void *					base_address;
+		uint32_t				limit;
 
 	};
 
@@ -904,6 +914,15 @@ namespace ia32
 		return __writedr(7, value);
 	}
 
+	inline uint64_t asm_read_eflags() noexcept
+	{
+		return __readeflags();
+	}
+	inline uint64_t asm_write_eflags(uint64_t value) noexcept
+	{
+		__writeeflags(value);
+	}
+
 	inline uint64_t asm_read_msr(uint32_t msr) noexcept
 	{
 		return __readmsr(msr);
@@ -980,6 +999,19 @@ namespace ia32
 
 	inline bool read_segment_info(segment_selector_t selector,segment_t * segment) noexcept
 	{
+
+		if (selector.flags  == 0)
+		{
+
+			segment->access.flags	 = 0;
+			segment->base_address	 = 0;
+			segment->limit			 = 0;
+			segment->selector.flags  = 0;
+			segment->access.unusable = true;
+
+			return true;
+		}
+
 		const auto gdtr = ia32::asm_read_gdtr();
 
 	 
