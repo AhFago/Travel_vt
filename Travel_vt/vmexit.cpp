@@ -71,7 +71,7 @@ namespace Travel_vt
 		vp->set_guest_tr(segment_tr);
 		vp->set_guest_ldtr(segment_ldtr);
 
-		// 2020/3/16 07:38
+		// 2020/3/16 07:38 aaa
 
 		return status_code::success;
 	}
