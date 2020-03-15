@@ -174,6 +174,10 @@ namespace ia32
 			};
 		};
 	};
+
+
+
+
 	struct segment_selector_t
 	{
 		enum
@@ -292,6 +296,16 @@ namespace ia32
 			};
 		};
 	};
+
+	struct cs_t   : segment_selector_t {};
+	struct ds_t   : segment_selector_t {};
+	struct es_t   : segment_selector_t {};
+	struct fs_t   : segment_selector_t {};
+	struct gs_t   : segment_selector_t {};
+	struct ss_t   : segment_selector_t {};
+	struct tr_t   : segment_selector_t {};
+	struct ldtr_t : segment_selector_t {};
+
 
 	struct gdtr_t
 	{
