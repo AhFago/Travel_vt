@@ -149,6 +149,87 @@ namespace Travel_vt
 		return (uint64_t)ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_msr_bitmap_address, MmGetPhysicalAddress((PVOID)msr_bitmap).QuadPart);
 	}
 
+	uint64_t vcpu_t::get_cr0_shadow() noexcept
+	{
+		uint64_t result;
+
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::ctrl_cr0_read_shadow, &result);
+
+		return result;
+	}
+
+	uint64_t vcpu_t::set_cr0_shadow(uint64_t cr0) noexcept
+	{
+		return ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_cr0_read_shadow, cr0);
+	}
+
+	uint64_t vcpu_t::get_cr4_shadow() noexcept
+	{
+		uint64_t result;
+
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::ctrl_cr4_read_shadow, &result);
+
+		return result;
+	}
+
+	uint64_t vcpu_t::set_cr4_shadow(uint64_t cr4) noexcept
+	{
+		return ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_cr4_read_shadow, cr4);
+	}
+
+	uint64_t vcpu_t::get_guest_cr0() noexcept
+	{
+		uint64_t result;
+
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cr0, &result);
+
+		return result;
+	}
+
+	uint64_t vcpu_t::set_guest_cr0(uint64_t cr0) noexcept
+	{
+		return ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cr0, cr0);
+	}
+
+	uint64_t vcpu_t::get_guest_cr3() noexcept
+	{
+		uint64_t result;
+
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cr3, &result);
+
+		return result;
+	}
+
+	uint64_t vcpu_t::set_guest_cr3(uint64_t cr3) noexcept
+	{
+		return ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cr3, cr3);
+	}
+
+	uint64_t vcpu_t::get_guest_cr4() noexcept
+	{
+		uint64_t result;
+
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cr4, &result);
+
+		return result;
+	}
+
+	uint64_t vcpu_t::set_guest_cr4(uint64_t cr4) noexcept
+	{
+		return ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cr4, cr4);
+	}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 	uint64_t vcpu_t::get_system_cr3() noexcept

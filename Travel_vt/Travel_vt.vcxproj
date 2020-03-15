@@ -164,6 +164,7 @@
     <ClCompile Include="msr.cpp" />
     <ClCompile Include="Travel_vt.cpp" />
     <ClCompile Include="vcpu.cpp" />
+    <ClCompile Include="vmexit.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h" />
@@ -175,6 +176,7 @@
     <ClInclude Include="Travel_vt.h" />
     <ClInclude Include="vcpu.h" />
     <ClInclude Include="vmcs.h" />
+    <ClInclude Include="vmexit.h" />
     <ClInclude Include="vmx.h" />
   </ItemGroup>
   <ItemGroup>

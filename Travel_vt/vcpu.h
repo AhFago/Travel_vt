@@ -38,6 +38,21 @@ namespace   Travel_vt
 		uint64_t get_msr_bitmap()									noexcept;
 		uint64_t set_msr_bitmap(uint64_t msr_bitmap)				noexcept;
 
+		uint64_t get_cr0_shadow()									noexcept;
+		uint64_t set_cr0_shadow(uint64_t cr0)						noexcept;
+
+		uint64_t get_cr4_shadow()									noexcept;
+		uint64_t set_cr4_shadow(uint64_t cr0)						noexcept;
+
+		uint64_t get_guest_cr0()									noexcept;
+		uint64_t set_guest_cr0(uint64_t cr0)						noexcept;
+
+		uint64_t get_guest_cr3()									noexcept;
+		uint64_t set_guest_cr3(uint64_t cr0)						noexcept;
+
+		uint64_t get_guest_cr4()									noexcept;
+		uint64_t set_guest_cr4(uint64_t cr0)						noexcept;
+
 
 		uint64_t  vcpu_t::get_system_cr3() noexcept;
 
