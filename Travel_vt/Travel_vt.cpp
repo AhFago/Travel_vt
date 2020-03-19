@@ -1,6 +1,8 @@
 #include "Travel_vt.h"
+#include <cstdint>
 
 #include "vcpu.h"
+#include "vmexit.h"
 
 
 NTSTATUS DriverEntry(IN PDRIVER_OBJECT pDriverObj, IN PUNICODE_STRING pRegistryString)
@@ -46,10 +48,13 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT pDriverObj, IN PUNICODE_STRING pRegistryS
 		IoDeleteDevice(pDevObj);
 		return status;
 	}
-	
-	Travel_vt::vcpu_t vcpu;
+	__debugbreak();
 
-	vcpu.vmx_enter();
+	Travel_vt::vcpu_t * vcpu = new Travel_vt::vcpu_t();
+
+ 	DebugPrintA("Travel_vt  vmx_enter %08x  \r\n", vcpu->vmx_enter());
+ 
+
 
 	DebugPrintA("Travel_vt DriverEntry Success \r\n");
 

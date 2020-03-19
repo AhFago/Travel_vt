@@ -3,17 +3,91 @@
 #include "register_ia32.h"
 #include "vmx.h"
 #include "vmcs.h"
-
-
+#include "xsave.h"
 
 namespace   Travel_vt
 {
+	class vmexit_handler;
+
+	enum class state
+	{
+		//
+		// VCPU is unitialized.
+		//
+		off,
+
+		//
+		// VCPU is in VMX-root mode; host & guest VMCS is being initialized.
+		//
+		initializing,
+
+		//
+		// VCPU successfully performed its initial VMENTRY.
+		//
+		launching,
+
+		//
+		// VCPU is running.
+		//
+		running,
+
+		//
+		// VCPU is terminating; vcpu::destroy has been called.
+		//
+		terminating,
+
+		//
+		// VCPU is terminated, VMX-root mode has been left.
+		//
+		terminated,
+	};
+	struct stack_t
+	{
+		static constexpr auto size = 0x8000;
+
+		struct machine_frame_t
+		{
+			uint64_t rip;
+			uint64_t cs;
+			uint64_t eflags;
+			uint64_t rsp;
+			uint64_t ss;
+		};
+
+		struct shadow_space_t
+		{
+			uint64_t dummy[4];
+		};
+
+		union
+		{
+			uint8_t data[size];
+
+			struct
+			{
+				uint8_t         dummy[size
+					- sizeof(shadow_space_t)
+					- sizeof(machine_frame_t)
+					- sizeof(uint64_t)];
+				shadow_space_t  shadow_space;
+				machine_frame_t machine_frame;
+				uint64_t        unused;
+			};
+		};
+	};
+
 
 	class vcpu_t 
 	{
+
 	public:
 
+		vcpu_t();
+		~vcpu_t();
+
+		void* operator new(size_t size);
 		
+
 		uint16_t get_vpid()													noexcept;
 		uint16_t set_vpid(uint16_t virtual_processor_identifier)			noexcept;
 
@@ -37,6 +111,9 @@ namespace   Travel_vt
 
 		uint64_t get_msr_bitmap()											noexcept;
 		uint64_t set_msr_bitmap(uint64_t msr_bitmap)						noexcept;
+
+		uint64_t get_io_bitmap()											noexcept;
+		uint64_t set_io_bitmap(uint64_t io_bit)								noexcept; 
 
 		uint64_t get_cr0_shadow()											noexcept;
 		uint64_t set_cr0_shadow(uint64_t cr0)								noexcept;
@@ -93,72 +170,62 @@ namespace   Travel_vt
 		ia32::segment_t set_guest_ldtr(ia32::segment_t segment_ldtr)		noexcept;
 
 
-		uint64_t  vcpu_t::get_system_cr3() noexcept;
+		uint64_t  get_system_cr3() noexcept;
 
-		status_code vcpu_t::load_vmxon() noexcept;
+		status_code load_vmxon() noexcept;
 
-		status_code vcpu_t::load_vmcs() noexcept;
+		status_code load_vmcs() noexcept;
 	
-		status_code vcpu_t::setup_host()  noexcept;
+		status_code setup_host()  noexcept;
 
-		status_code vcpu_t::setup_guest() noexcept;
+		status_code setup_guest() noexcept;
 	
 
 
-		status_code vcpu_t::vmx_enter() noexcept;
+		status_code vmx_enter() noexcept;
+		status_code vmx_leave() noexcept;
 
-
+		
 
 	private:
 
  		static void asm_entry_host()  noexcept;
  		static void asm_entry_guest() noexcept;
 
-		void vcpu_t::entry_host()  noexcept;
-		void vcpu_t::entry_guest() noexcept;
+		void entry_host()  noexcept;
+		void entry_guest() noexcept;
 
-		struct stack_t
+		
+		stack_t							m_stack;
+
+		union
 		{
-			static constexpr auto size = 0x8000;
-
-			struct machine_frame_t
-			{
-				uint64_t rip;
-				uint64_t cs;
-				uint64_t eflags;
-				uint64_t rsp;
-				uint64_t ss;
-			};
-
-			struct shadow_space_t
-			{
-				uint64_t dummy[4];
-			};
-
-			union
-			{
-				uint8_t data[size];
-
-				struct
-				{
-					uint8_t         dummy[size
-						- sizeof(shadow_space_t)
-						- sizeof(machine_frame_t)
-						- sizeof(uint64_t)];
-					shadow_space_t  shadow_space;
-					machine_frame_t machine_frame;
-					uint64_t        unused;
-				};
-			};
+			ia32::context_t				m_context;
+			ia32::context_t				m_launch_context;
 		};
 
+		ia32::fxsave_area_t				m_fxsave_area;
+		uint64_t						m_tsc_entry;
+		uint64_t						m_tsc_delta_previous;
+		uint64_t						m_tsc_delta_sum;
 
-		ia32::vmx::vmcs_t           m_vmxon;
-		ia32::vmx::vmcs_t           m_vmcs;
-		ia32::vmx::msr_bitmap_t		m_msr_bitmap;
 
-		stack_t m_stack;
+		state							m_state;
+		bool							m_suppress_rip_adjust;
 
+
+
+
+		ia32::vmx::vmcs_t				m_vmcs;
+		ia32::vmx::vmcs_t				m_vmxon;
+
+		ia32::vmx::io_bitmap_t			m_io_bitmap;
+		ia32::vmx::msr_bitmap_t			m_msr_bitmap;
+
+ 
+ 		vmexit_handler *				m_vmexit_handler;
+		
+		
 
 	};
 

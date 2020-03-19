@@ -1,10 +1,42 @@
 #include "vcpu.h"
 #include "vmx.h"
 #include "msr.h"
-
+#include "vmexit.h"
 
 namespace Travel_vt
 {
+
+	vcpu_t::vcpu_t()
+	{
+
+		memset(&m_context			, 0, sizeof(m_context));
+		memset(&m_fxsave_area		, 0, sizeof(m_fxsave_area));
+
+		memset(&m_tsc_entry			, 0, sizeof(m_tsc_entry));
+		memset(&m_tsc_delta_sum		, 0, sizeof(m_tsc_delta_sum));
+		memset(&m_tsc_delta_previous, 0, sizeof(m_tsc_delta_previous));
+ 
+		memset(&m_state				, 0, sizeof(m_state));
+		memset(&m_stack				, 0, sizeof(m_stack));
+
+		memset(&m_vmcs				, 0, sizeof(m_vmcs));
+		memset(&m_vmxon				, 0, sizeof(m_vmxon));
+		memset(&m_msr_bitmap		, 0, sizeof(m_msr_bitmap));
+
+		m_suppress_rip_adjust		= false;
+		m_vmexit_handler			= new vmexit_handler();
+
+	}
+	vcpu_t::~vcpu_t()
+	{
+		__debugbreak();
+	}
+	void* vcpu_t::operator new(size_t size)
+	{
+		return ExAllocatePool(PagedPool, size);
+	}
+
+
 	uint16_t vcpu_t::set_vpid(uint16_t virtual_processor_identifier) noexcept
 	{
 		return (uint16_t)ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_virtual_processor_identifier, virtual_processor_identifier);
@@ -13,10 +45,10 @@ namespace Travel_vt
 	{
 		uint16_t result;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::ctrl_virtual_processor_identifier,(uint64_t *)&result);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::ctrl_virtual_processor_identifier, (uint64_t*)&result);
 
 		return result;
-	
+
 	}
 
 	uint64_t vcpu_t::set_vmcs_link_pointer(uint64_t link_pointer) noexcept
@@ -27,12 +59,12 @@ namespace Travel_vt
 	{
 		uint64_t result;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_vmcs_link_pointer,&result);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_vmcs_link_pointer, &result);
 
 		return result;
 	}
 
- 	uint64_t vcpu_t::get_pin_based_controls() noexcept
+	uint64_t vcpu_t::get_pin_based_controls() noexcept
 	{
 		uint64_t result;
 
@@ -42,9 +74,9 @@ namespace Travel_vt
 	}
 	uint64_t vcpu_t::set_pin_based_controls(uint64_t controls) noexcept
 	{
-		ia32::msr::vmx_true_ctls_t true_ctls;
+		ia32::msr::vmx_true_ctls_t			  true_ctls;
 
-		true_ctls.flags = ia32::asm_read_msr(controls + 0x0C);
+		true_ctls.flags = ia32::asm_read_msr(ia32::msr::vmx_pinbased_ctls_t::msr_id + 0x0C);
 
 		controls |= true_ctls.allowed_0_settings;
 		controls &= true_ctls.allowed_1_settings;
@@ -64,7 +96,7 @@ namespace Travel_vt
 	{
 		ia32::msr::vmx_true_ctls_t true_ctls;
 
-		true_ctls.flags = ia32::asm_read_msr(controls + 0x0C);
+		true_ctls.flags = ia32::asm_read_msr(ia32::msr::vmx_procbased_ctls_t::msr_id + 0x0C);
 
 		controls |= true_ctls.allowed_0_settings;
 		controls &= true_ctls.allowed_1_settings;
@@ -84,7 +116,7 @@ namespace Travel_vt
 	{
 		ia32::msr::vmx_true_ctls_t true_ctls;
 
-		true_ctls.flags = ia32::asm_read_msr(controls);
+		true_ctls.flags = ia32::asm_read_msr(ia32::msr::vmx_procbased_ctls2_t::msr_id);
 
 		controls |= true_ctls.allowed_0_settings;
 		controls &= true_ctls.allowed_1_settings;
@@ -104,7 +136,7 @@ namespace Travel_vt
 	{
 		ia32::msr::vmx_true_ctls_t true_ctls;
 
-		true_ctls.flags = ia32::asm_read_msr(controls + 0x0C);
+		true_ctls.flags = ia32::asm_read_msr(ia32::msr::vmx_entry_ctls_t::msr_id + 0x0C);
 
 		controls |= true_ctls.allowed_0_settings;
 		controls &= true_ctls.allowed_1_settings;
@@ -122,9 +154,9 @@ namespace Travel_vt
 	}
 	uint64_t vcpu_t::set_vm_exit_controls(uint64_t controls) noexcept
 	{
-		ia32::msr::vmx_true_ctls_t true_ctls;
+		ia32::msr::vmx_true_ctls_t  true_ctls;
 
-		true_ctls.flags = ia32::asm_read_msr(controls + 0x0C);
+		true_ctls.flags = ia32::asm_read_msr(ia32::msr::vmx_exit_ctls_t::msr_id + 0x0C);
 
 		controls |= true_ctls.allowed_0_settings;
 		controls &= true_ctls.allowed_1_settings;
@@ -135,10 +167,26 @@ namespace Travel_vt
 	uint64_t vcpu_t::get_msr_bitmap() noexcept
 	{
 		return (uint64_t)&m_msr_bitmap;
+
 	}
 	uint64_t vcpu_t::set_msr_bitmap(uint64_t msr_bitmap) noexcept
 	{
 		return (uint64_t)ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_msr_bitmap_address, MmGetPhysicalAddress((PVOID)msr_bitmap).QuadPart);
+	}
+
+	uint64_t vcpu_t::get_io_bitmap() noexcept
+	{
+		return (uint64_t)&m_io_bitmap;
+
+	}
+	uint64_t vcpu_t::set_io_bitmap(uint64_t io_bit) noexcept
+	{
+		m_io_bitmap.a[io_bit / sizeof(uint64_t)] |= 1 << (io_bit % (sizeof(uint64_t)));
+
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_io_bitmap_a_address, MmGetPhysicalAddress(&m_io_bitmap.a).QuadPart);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::ctrl_io_bitmap_b_address, MmGetPhysicalAddress(&m_io_bitmap.b).QuadPart);
+
+		return 0;
 	}
 
 	uint64_t vcpu_t::get_cr0_shadow() noexcept
@@ -249,14 +297,14 @@ namespace Travel_vt
 	{
 		ia32::gdtr_t gdtr;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_base,  (uint64_t*)&gdtr.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_base, (uint64_t*)&gdtr.base_address);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_limit, (uint64_t*)&gdtr.limit);
 
 		return gdtr;
 	}
 	ia32::gdtr_t vcpu_t::set_guest_gdtr(ia32::gdtr_t gdtr) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_base,  gdtr.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_base, gdtr.base_address);
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gdtr_limit, gdtr.limit);
 
 		return gdtr;
@@ -266,14 +314,14 @@ namespace Travel_vt
 	{
 		ia32::idtr_t idtr;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_base,  (uint64_t*)&idtr.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_base, (uint64_t*)&idtr.base_address);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_limit, (uint64_t*)&idtr.limit);
 
 		return idtr;
 	}
 	ia32::idtr_t vcpu_t::set_guest_idtr(ia32::idtr_t idtr) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_base,  idtr.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_base, idtr.base_address);
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_idtr_limit, idtr.limit);
 
 		return idtr;
@@ -283,19 +331,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_cs;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_base,			 (uint64_t*)&segment_cs.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_limit,		 (uint64_t*)&segment_cs.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_selector,		 (uint64_t*)&segment_cs.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_base, (uint64_t*)&segment_cs.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_limit, (uint64_t*)&segment_cs.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_selector, (uint64_t*)&segment_cs.selector);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_access_rights, (uint64_t*)&segment_cs.access);
 
 		return segment_cs;
 	}
 	ia32::segment_t vcpu_t::set_guest_cs(ia32::segment_t segment_cs) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_base,		 (uint64_t)segment_cs.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_limit,		 (uint64_t)segment_cs.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_selector,	 (uint64_t)segment_cs.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_access_rights,(uint64_t)segment_cs.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_base, (uint64_t)segment_cs.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_limit, (uint64_t)segment_cs.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_selector, (uint64_t)segment_cs.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_cs_access_rights, (uint64_t)segment_cs.access.flags);
 
 		return segment_cs;
 	}
@@ -304,19 +352,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_ds;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_base,			 (uint64_t*)&segment_ds.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_limit,		 (uint64_t*)&segment_ds.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_selector,		 (uint64_t*)&segment_ds.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_base, (uint64_t*)&segment_ds.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_limit, (uint64_t*)&segment_ds.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_selector, (uint64_t*)&segment_ds.selector);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_access_rights, (uint64_t*)&segment_ds.access);
 
 		return segment_ds;
 	}
 	ia32::segment_t vcpu_t::set_guest_ds(ia32::segment_t segment_ds) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_base,		 (uint64_t)segment_ds.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_limit,		 (uint64_t)segment_ds.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_selector,	 (uint64_t)segment_ds.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_access_rights,(uint64_t)segment_ds.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_base, (uint64_t)segment_ds.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_limit, (uint64_t)segment_ds.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_selector, (uint64_t)segment_ds.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ds_access_rights, (uint64_t)segment_ds.access.flags);
 
 		return segment_ds;
 	}
@@ -325,19 +373,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_es;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_base,			(uint64_t*)&segment_es.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_limit,		(uint64_t*)&segment_es.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_selector,		(uint64_t*)&segment_es.selector);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_access_rights,(uint64_t*)&segment_es.access);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_base, (uint64_t*)&segment_es.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_limit, (uint64_t*)&segment_es.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_selector, (uint64_t*)&segment_es.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_es_access_rights, (uint64_t*)&segment_es.access);
 
 		return segment_es;
 	}
 	ia32::segment_t vcpu_t::set_guest_es(ia32::segment_t segment_es) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_base,		 (uint64_t)segment_es.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_limit,		 (uint64_t)segment_es.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_selector,	 (uint64_t)segment_es.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_access_rights,(uint64_t)segment_es.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_base, (uint64_t)segment_es.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_limit, (uint64_t)segment_es.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_selector, (uint64_t)segment_es.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_es_access_rights, (uint64_t)segment_es.access.flags);
 
 		return segment_es;
 	}
@@ -346,19 +394,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_fs;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_base,			 (uint64_t*)&segment_fs.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_limit,		 (uint64_t*)&segment_fs.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_selector,		 (uint64_t*)&segment_fs.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_base, (uint64_t*)&segment_fs.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_limit, (uint64_t*)&segment_fs.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_selector, (uint64_t*)&segment_fs.selector);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_access_rights, (uint64_t*)&segment_fs.access);
 
 		return segment_fs;
 	}
 	ia32::segment_t vcpu_t::set_guest_fs(ia32::segment_t segment_fs) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_base,		 (uint64_t)segment_fs.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_limit,		 (uint64_t)segment_fs.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_selector,	 (uint64_t)segment_fs.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_access_rights,(uint64_t)segment_fs.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_base, (uint64_t)segment_fs.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_limit, (uint64_t)segment_fs.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_selector, (uint64_t)segment_fs.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_fs_access_rights, (uint64_t)segment_fs.access.flags);
 
 		return segment_fs;
 	}
@@ -367,19 +415,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_gs;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_base,			 (uint64_t*)&segment_gs.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_limit,		 (uint64_t*)&segment_gs.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_selector,		 (uint64_t*)&segment_gs.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_base, (uint64_t*)&segment_gs.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_limit, (uint64_t*)&segment_gs.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_selector, (uint64_t*)&segment_gs.selector);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_access_rights, (uint64_t*)&segment_gs.access);
 
 		return segment_gs;
 	}
 	ia32::segment_t vcpu_t::set_guest_gs(ia32::segment_t segment_gs) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_base,		 (uint64_t)segment_gs.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_limit,		 (uint64_t)segment_gs.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_selector,	 (uint64_t)segment_gs.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_access_rights,(uint64_t)segment_gs.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_base, (uint64_t)segment_gs.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_limit, (uint64_t)segment_gs.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_selector, (uint64_t)segment_gs.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_gs_access_rights, (uint64_t)segment_gs.access.flags);
 
 		return segment_gs;
 	}
@@ -388,19 +436,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_ss;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_base,			 (uint64_t*)&segment_ss.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_limit,		 (uint64_t*)&segment_ss.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_selector,		 (uint64_t*)&segment_ss.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_base, (uint64_t*)&segment_ss.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_limit, (uint64_t*)&segment_ss.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_selector, (uint64_t*)&segment_ss.selector);
 		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_access_rights, (uint64_t*)&segment_ss.access);
 
 		return segment_ss;
 	}
 	ia32::segment_t vcpu_t::set_guest_ss(ia32::segment_t segment_ss) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_base,		 (uint64_t)segment_ss.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_limit,		 (uint64_t)segment_ss.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_selector,	 (uint64_t)segment_ss.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_access_rights,(uint64_t)segment_ss.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_base, (uint64_t)segment_ss.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_limit, (uint64_t)segment_ss.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_selector, (uint64_t)segment_ss.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ss_access_rights, (uint64_t)segment_ss.access.flags);
 
 		return segment_ss;
 	}
@@ -409,19 +457,19 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_tr;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_base,			(uint64_t*)&segment_tr.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_limit,		(uint64_t*)&segment_tr.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_selector,		(uint64_t*)&segment_tr.selector);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_access_rights,(uint64_t*)&segment_tr.access);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_base, (uint64_t*)&segment_tr.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_limit, (uint64_t*)&segment_tr.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_selector, (uint64_t*)&segment_tr.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_access_rights, (uint64_t*)&segment_tr.access);
 
 		return segment_tr;
 	}
 	ia32::segment_t vcpu_t::set_guest_tr(ia32::segment_t segment_tr) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_base,		 (uint64_t)segment_tr.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_limit,		 (uint64_t)segment_tr.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_selector,	 (uint64_t)segment_tr.selector.flags);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_access_rights,(uint64_t)segment_tr.access.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_base, (uint64_t)segment_tr.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_limit, (uint64_t)segment_tr.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_selector, (uint64_t)segment_tr.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_tr_access_rights, (uint64_t)segment_tr.access.flags);
 
 		return segment_tr;
 	}
@@ -430,18 +478,18 @@ namespace Travel_vt
 	{
 		ia32::segment_t segment_ldtr;
 
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_base,			(uint64_t*)&segment_ldtr.base_address);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_limit,			(uint64_t*)&segment_ldtr.limit);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_selector,		(uint64_t*)&segment_ldtr.selector);
-		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_access_rights,	(uint64_t*)&segment_ldtr.access);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_base, (uint64_t*)&segment_ldtr.base_address);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_limit, (uint64_t*)&segment_ldtr.limit);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_selector, (uint64_t*)&segment_ldtr.selector);
+		ia32::asm_vmx_vmread((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_access_rights, (uint64_t*)&segment_ldtr.access);
 
 		return segment_ldtr;
 	}
 	ia32::segment_t vcpu_t::set_guest_ldtr(ia32::segment_t segment_ldtr) noexcept
 	{
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_base,			(uint64_t)segment_ldtr.base_address);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_limit,			(uint64_t)segment_ldtr.limit);
-		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_selector,		(uint64_t)segment_ldtr.selector.flags);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_base, (uint64_t)segment_ldtr.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_limit, (uint64_t)segment_ldtr.limit);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_selector, (uint64_t)segment_ldtr.selector.flags);
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::guest_ldtr_access_rights, (uint64_t)segment_ldtr.access.flags);
 
 		return segment_ldtr;
@@ -478,6 +526,7 @@ namespace Travel_vt
 		ia32::asm_write_cr4(ia32::asm_read_cr4() | ia32::asm_read_msr(cr4_fixed0.msr_id) & ia32::asm_read_msr(cr4_fixed1.msr_id));
 
 		vmx_basic.flags = ia32::asm_read_msr(vmx_basic.msr_id);
+
 		m_vmxon.revision_id = vmx_basic.vmcs_revision_id;
 
 		uint64_t vmxon_pa = MmGetPhysicalAddress(&m_vmxon).QuadPart;
@@ -566,6 +615,10 @@ namespace Travel_vt
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_ss_selector, (uint64_t)(segment_ss.selector.index * 8));
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_tr_selector, (uint64_t)(segment_tr.selector.index * 8));
 
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_fs_base, (uint64_t)segment_fs.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_gs_base, (uint64_t)segment_gs.base_address);
+		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_tr_base, (uint64_t)segment_tr.base_address);
+
 
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cr0, ia32::asm_read_cr0());
 		ia32::asm_vmx_vmwrite((uint64_t)ia32::vmx::vmcs_t::field::host_cr4, ia32::asm_read_cr4());
@@ -623,6 +676,7 @@ namespace Travel_vt
 	
 	status_code vcpu_t::vmx_enter() noexcept
 	{
+		uint64_t vm_error;
 		status_code error_code;
 
 		error_code = load_vmxon();
@@ -653,19 +707,73 @@ namespace Travel_vt
 			return error_code;
 		}
 	
+		error_code = m_vmexit_handler->setup(this);
+
+		if (error_code != status_code::success)
+		{
+			return error_code;
+		}
+
+		ia32::asm_vmx_vmlaunch();
+
+		return status_code::permission_denied;
+	}
+
+	status_code vcpu_t::vmx_leave() noexcept
+	{
+
+// 		ia32::cr4_t cr4;
+// 
+// 		ia32::asm_vmx_off();
+// 
+// 		cr4.flags =  ia32::asm_read_cr4();
+// 		cr4.vmx_enable = false;
+// 
+// 		ia32::asm_write_cr4(cr4.flags);
+// 
+// 
+// 		m_state = state::terminated;
 
 		return status_code::success;
 	}
 
-
+	
+	
 	void vcpu_t::entry_host() noexcept
 	{
+
+		//vcpu_t* m_vcpu = this;
+
+
+		
+
+		//ia32::context_t m_context = m_vcpu->m_context;
+
+// 		m_suppress_rip_adjust = false;
+// 
+// 		m_tsc_entry = ia32::asm_read_tsc();
+// 
+// 		ia32::asm_fx_save(&m_fxsave_area);
+
+		__debugbreak();
+
+		uint64_t m_context_addr = (uint64_t)&m_context;
+		uint64_t m_this_addr = (uint64_t)this;
+
+		const auto captured_rsp		= m_context.rsp;
+		const auto captured_rflags  = m_context.rflags;
+		
+
+
+
 
 	}
 
 	void vcpu_t::entry_guest() noexcept
 	{
-
+		m_launch_context.rax = static_cast<uint64_t>(state::launching);
 	}
 
 };
+
+

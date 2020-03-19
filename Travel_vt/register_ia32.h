@@ -812,7 +812,22 @@ namespace ia32
 	{
 		__cpuid((int*)result, (int)eax);
 	}
-
+	inline uint64_t asm_read_tsc() noexcept
+	{
+		return __rdtsc();
+	}
+	inline uint64_t asm_read_tscp(uint32_t* aux) noexcept
+	{
+		return __rdtscp(aux);
+	}
+	inline void asm_fx_save(void* fxarea) noexcept
+	{
+		_fxsave(fxarea);
+	}
+	inline void asm_fx_restore(const void* fxarea) noexcept
+	{
+		_fxrstor(fxarea);
+	}
 
 	inline uint64_t asm_read_cr0() noexcept
 	{

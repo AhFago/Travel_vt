@@ -1,7 +1,20 @@
 #include "vmexit.h"
 #include "msr.h"
+
 namespace Travel_vt
 {
+	vmexit_handler::vmexit_handler()
+	{
+
+	}
+	vmexit_handler::~vmexit_handler()
+	{
+
+	}
+	void* vmexit_handler::operator new(size_t size)
+	{
+		return ExAllocatePool(PagedPool, size);
+	}
 
 	status_code vmexit_handler::setup(vcpu_t * vp) noexcept
 	{
@@ -70,8 +83,31 @@ namespace Travel_vt
 		vp->set_guest_ss(segment_ss);
 		vp->set_guest_tr(segment_tr);
 		vp->set_guest_ldtr(segment_ldtr);
+		
+		//EPT--------------------------------------
 
-		// 2020/3/16 07:38 aaa
+
+		//EPT--------------------------------------
+
+
+		//io_bitmaps-------------------------------
+
+		ia32::msr::vmx_procbased_ctls_t procbased_ctls;
+		 
+		procbased_ctls.flags = vp->get_processor_based_controls();
+
+		procbased_ctls.use_io_bitmaps = true;
+
+		vp->set_processor_based_controls(procbased_ctls.flags);
+
+ 
+		vp->set_io_bitmap(0x60);//МќХЬ
+		vp->set_io_bitmap(0x64);//ЪѓБъ
+
+	 
+
+		//io_bitmaps-------------------------------
+
 
 		return status_code::success;
 	}

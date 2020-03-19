@@ -187,7 +187,7 @@ INCLUDE ksamd64.inc
     ?asm_entry_guest@vcpu_t@Travel_vt@@CAXXZ PROC
 ;
 ; RCX = &vcpu
-; RBX = &vcpu.launch_context_
+; RBX = &vcpu.m_launch_context
 ;
         lea     rcx, qword ptr [rsp + VCPU_OFFSET]
         lea     rbx, qword ptr [rsp + VCPU_LAUNCH_CONTEXT_OFFSET]
@@ -234,16 +234,17 @@ INCLUDE ksamd64.inc
 ;--
 
     ?asm_entry_host@vcpu_t@Travel_vt@@CAXXZ PROC FRAME
+        int 3
         push    rcx
 
 ;
-; RCX = &vcpu.context_
+; RCX = &vcpu.m_context
 ;
         lea     rcx, qword ptr [rsp + 8 + VCPU_CONTEXT_OFFSET]
         call    ?capture@context_t@ia32@@QEAAHXZ
 
 ;
-; RBX = &vcpu.context_
+; RBX = &vcpu.m_context
 ; RCX = original value of RCX
 ; RSP = original value of RSP
 ;
