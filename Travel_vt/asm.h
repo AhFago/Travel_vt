@@ -57,6 +57,18 @@ struct invvpid_desc_t
 
 static_assert(sizeof(invvpid_desc_t) == 16);
 
+
+inline void ia32_asm_pause() noexcept
+{
+	_mm_pause();
+}
+
+
+void ia32_asm_invd() noexcept;
+
+void ia32_asm_halt() noexcept;
+
+
 uint16_t ia32_asm_read_cs() noexcept;
 void ia32_asm_write_cs(uint16_t cs) noexcept;
 uint16_t ia32_asm_read_ds() noexcept;

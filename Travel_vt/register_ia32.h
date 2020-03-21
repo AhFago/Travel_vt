@@ -806,11 +806,89 @@ namespace ia32
 	};
 
 
+
+	enum class exception_vector : uint32_t
+	{
+		divide_error = 0,
+		debug = 1,
+		nmi_interrupt = 2,
+		breakpoint = 3,
+		overflow = 4,
+		bound = 5,
+		invalid_opcode = 6,
+		device_not_available = 7,
+		double_fault = 8,
+		coprocessor_segment_overrun = 9,
+		invalid_tss = 10,
+		segment_not_present = 11,
+		stack_segment_fault = 12,
+		general_protection = 13,
+		page_fault = 14,
+		x87_floating_point_error = 16,
+		alignment_check = 17,
+		machine_check = 18,
+		simd_floating_point_error = 19,
+		virtualization_exception = 20,
+
+		//
+		// NT (Windows) specific exception vectors.
+		//
+
+		nt_apc_interrupt = 31,
+		nt_dpc_interrupt = 47,
+		nt_clock_interrupt = 209,
+		nt_pmi_interrupt = 254,
+	};
+
+	struct pagefault_error_code_t
+	{
+		union
+		{
+			uint32_t flags;
+
+			struct
+			{
+				uint32_t present : 1;
+				uint32_t write : 1;
+				uint32_t user_mode_access : 1;
+				uint32_t reserved_bit_violation : 1;
+				uint32_t execute : 1;
+				uint32_t protection_key_violation : 1;
+				uint32_t reserved_1 : 9;
+				uint32_t sgx_access_violation : 1;
+				uint32_t reserved_2 : 16;
+			};
+		};
+	};
+
+	struct exception_error_code_t
+	{
+		union
+		{
+			uint32_t flags;
+
+			struct
+			{
+				uint32_t external_event : 1;
+				uint32_t descriptor_location : 1;
+				uint32_t table : 1;
+				uint32_t index : 13;
+				uint32_t reserved : 16;
+			};
+
+			pagefault_error_code_t pagefault;
+		};
+	};
+
 	#pragma pack(pop)
 
 	inline void asm_cpuid(uint32_t result[4], uint32_t eax) noexcept
 	{
 		__cpuid((int*)result, (int)eax);
+	}
+	inline void asm_cpuid_ex(uint32_t result[4], uint32_t eax, uint32_t ecx) noexcept
+	{
+		__cpuidex((int*)result, (int)eax, (int)ecx);
 	}
 	inline uint64_t asm_read_tsc() noexcept
 	{
@@ -947,7 +1025,28 @@ namespace ia32
 		__writemsr(msr, value);
 	}
 
+//
+// Cache control.
+//
 
+	
+
+	inline void asm_wb_invd(void) noexcept
+	{
+		__wbinvd();
+	}
+
+	inline void asm_inv_page(void* address) noexcept
+	{
+		__invlpg(address);
+	}
+	inline void asm_inv_pcid(invpcid_t type, invpcid_desc_t* descriptor) noexcept
+	{
+		_invpcid((unsigned int)type, descriptor);
+	}
+//
+// VMX.
+//
 	inline uint8_t asm_vmx_on(uint64_t* vmxon_pa) noexcept
 	{
 		return __vmx_on(vmxon_pa);

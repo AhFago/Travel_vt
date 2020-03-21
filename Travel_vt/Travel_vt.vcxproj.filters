@@ -81,4 +81,9 @@
       <Filter>Resource Files</Filter>
     </MASM>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="vcpu.inl">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

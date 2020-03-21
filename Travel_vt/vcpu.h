@@ -88,6 +88,54 @@ namespace   Travel_vt
 		void* operator new(size_t size);
 		
 
+		uint32_t get_entry_instruction_length()								noexcept;
+		uint32_t set_entry_instruction_length(uint32_t instruction_length)	noexcept;
+
+		uint32_t get_entry_interruption_info()								noexcept;
+		uint32_t set_entry_interruption_info(uint32_t  interrupt_info)		noexcept;
+
+		uint32_t get_entry_interruption_error_code()						noexcept;
+		uint32_t set_entry_interruption_error_code(uint32_t  error_code)	noexcept;
+ 
+ 		//---------------------------------------------------------------------------------------
+		// Exit state
+		//---------------------------------------------------------------------------------------
+	
+		uint32_t exit_instruction_error()									noexcept;
+		uint32_t exit_instruction_info()									noexcept;
+		uint32_t exit_instruction_length()									noexcept;
+
+		uint32_t exit_interruption_info()									noexcept;
+		uint32_t exit_interruption_error_code()								noexcept;
+
+		uint32_t exit_idt_vectoring_info()									noexcept;
+		uint32_t exit_idt_vectoring_error_code()							noexcept;
+ 
+		uint32_t exit_reason()												noexcept;
+		uint32_t exit_qualification()										noexcept;
+		
+		uint64_t exit_guest_physical_address()								noexcept;
+		uint64_t exit_guest_linear_address()								noexcept;
+		
+
+		//---------------------------------------------------------------------------------------
+		// interrupts 
+		//---------------------------------------------------------------------------------------
+
+		ia32::vmx::interrupt_t get_interrupt_info()							noexcept;
+		ia32::vmx::interrupt_t get_idt_vectoring_info()						noexcept;
+
+ 
+// 		bool interrupt_inject(interrupt_t interrupt, bool front = false) noexcept;
+// 		void interrupt_inject_force(interrupt_t interrupt) noexcept;
+// 		void interrupt_inject_pending(interrupt_queue_type queue_type) noexcept;
+// 		bool interrupt_is_pending(interrupt_queue_type queue_type) const noexcept;
+// 
+// 		auto exit_instruction_info_guest_va() const noexcept -> void*;
+
+			
+		
+
 		uint16_t get_vpid()													noexcept;
 		uint16_t set_vpid(uint16_t virtual_processor_identifier)			noexcept;
 
@@ -186,6 +234,15 @@ namespace   Travel_vt
 		status_code vmx_leave() noexcept;
 
 		
+		stack_t							m_stack;
+
+		union
+		{
+			ia32::context_t				m_context;
+			ia32::context_t				m_launch_context;
+		};
+
+
 
 	private:
 
@@ -196,13 +253,7 @@ namespace   Travel_vt
 		void entry_guest() noexcept;
 
 		
-		stack_t							m_stack;
-
-		union
-		{
-			ia32::context_t				m_context;
-			ia32::context_t				m_launch_context;
-		};
+		
 
 		ia32::fxsave_area_t				m_fxsave_area;
 		uint64_t						m_tsc_entry;
